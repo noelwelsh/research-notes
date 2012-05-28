@@ -1,0 +1,106 @@
+#+TITLE: Online Passive-Aggressive Algorithms
+\DeclareMathOperator*{\argmin}{arg\,min}
+Commenced 25 May 2012 on the train to London
+* Contributions
+  - A simple online algorithm for binary classification (PA perceptron)
+  - Two modifications to this algorithm to handle noise
+  - Analysis of these three algorithms with unified framework
+  - Generalisation to multiclass classification, regression, uniclass prediction, and sequence prediction.
+* Setting
+  The basic setting is online binary classification.
+** Basic Algorithm
+  For each round $t$
+   - Algorithm is presented with instance $\mathbf{x}_t \in \Re^n$
+     - Each instance is associated with a true label $y_t$
+     - Labels are $\{-1, 1\}$
+     - The pair $(\mathbf{x}_t, y_t)$ is an /example/
+   - Algorithm guesses a label
+   - True label is revealed and the algorithm suffers an /instantaneous loss/
+   - Algorithm (optionally) updates itself based on its loss.
+** Classification and Loss Function
+   - Classifiers are separating hyperplanes. Thus represented as $\mathbf{w} \in \Re^n$
+   - Classification rule is $sign(\mathbf{w}\cdot\mathbf{x})$
+   - Interpet magnitude $|\mathbf{w}\cdot\mathbf{x}|$ as degree of confidence in prediction.
+   - $\mathbf{w}_t$ is the weight vector used at round $t$
+   - $y_t(\mathbf{w}\cdot\mathbf{x})$ is the /margin/ at round $t$. A positive margin indicates a correct prediction. Our goal is to achieve margin at least 1 (i.e. to predict with high confidence). This motivates the loss function.
+   - The loss function is the /hinge loss/
+
+     \begin{equation*}
+     l(\mathbf{w}, (\mathbf{x}, y)) = \left\{
+       \begin{aligned}
+       0                               & y(\mathbf{w}\cdot\mathbf{x}) \geq 1 \\
+       1 - y(\mathbf{w}\cdot\mathbf{x}) & \text{otherwise}
+       \end{aligned} \right.
+     \end{equation*}
+
+     Note that loss is incurred even on correct predictions if the margin is less than 1.
+
+* Binary Classification
+  To define an algorithm we need to specify two things:
+  - How to initialize $\mathbf{w}_1$
+  - How to update the weight vector at each round.
+  We look at three variants. Each variant starts with the same initialization $\mathbf{w}_1 = (0, \cdots, 0)$ and differs in the update.
+** Noise-free Case
+   We start by looking at binary classification in the noise-free case. The optimisation problem we want to solve is
+
+   \begin{equation*}
+   \mathbf{w}_{t+1} = \argmin_{\mathbf{w} \in \Re^n} \frac{1}{2} \| \mathbf{w} - \mathbf{w_t} \|^2
+   \end{equation*}
+
+   subject to $l(\mathbf{w}, (\mathbf{x}_t, y_t)) = 0$.
+
+   When the loss is zero, no change occurs. The algorithm is /passive/. When the loss is non-zero we make the smallest possible update to make it zero -- we are /aggressive/. This trades off keeping information from previous rounds and adapting to new information.
+*** Solving the Optimisation
+    The solution to the optimisation problem is straightforward given a few tools:
+    - Write the Lagrangian to include the constraints
+    - Take the derivative of the Lagrangian and solve for zero to find values for the weights and the Lagrange multiplier.
+    - The following come in handy:
+      - $\|w\|^2 = w^Tw = w\cdotw$
+      - The derivative with respect to a vector is a vector with components equal to the partial derivatives with respect with the components.
+
+     The solution is
+
+      \begin{equation*}
+      \mathbf{w}_{t+1} = \mathbf{w}_t + \mathbf{\tau}_ty_t\mathbf{x}_t, \: \text{where} \; \mathbf{\tau}_t = \frac{l_t}{\|\mathbf{x}\|^2}
+      \end{equation*}
+** Accounting for Noise
+   Ensuring a margin of one gives us some capacity to handle noise in the data. Label noise, however, can cause dramatic changes in the weight vector. A solution is to regularize the weight update.
+   We introduce non-negative slack variables $\xi$ that constrain the loss and a user specified $C$, called the /aggressiveness parameter/ that balances between updating the weights and incurring loss. Larger $C$ favours updates to the weights.
+*** PA-I
+    The first method solves the objective function
+
+    \begin{equation*}
+    \mathbf{w}_{t+1} = \argmin_{\mathbf{w} \in \mathbb{R}^n} \frac{1}{2}\| \mathbf{w} - \mathbf{w}_t \|^2 + C\xi, \: \text{s.t.} \; l(\mathbf{w},(\mathbf{x}_t,y_t)) \leq \xi \; \text{and} \; \xi \geq 0
+    \end{equation*}
+
+     The solution is
+
+      \begin{equation*}
+      \mathbf{w}_{t+1} = \mathbf{w}_t + \mathbf{\tau}_ty_t\mathbf{x}_t, \: \text{where} \; \mathbf{\tau}_t = \min \left\{ C, \frac{l_t}{\|\mathbf{x}\|^2} \right\}
+      \end{equation*}
+*** PA-II
+    The second method has the objective scale quadratically with $\xi$:
+
+    \begin{equation*}
+    \mathbf{w}_{t+1} = \argmin_{\mathbf{w} \in \mathbb{R}^n} \frac{1}{2}\| \mathbf{w} - \mathbf{w}_t \|^2 + C\xi^2, \: \text{s.t.} \; l(\mathbf{w},(\mathbf{x}_t,y_t)) \leq \xi
+    \end{equation*
+
+     The solution is
+
+      \begin{equation*}
+      \mathbf{w}_{t+1} = \mathbf{w}_t + \mathbf{\tau}_ty_t\mathbf{x}_t, \: \text{where} \; \mathbf{\tau}_t = \frac{l_t}{\|\mathbf{x}\|^2 + \frac{1}{2C}}
+      \end{equation*}
+** Kernelisation
+   All the algorithms above can be generalized to using Mercer kernels. Note that
+
+   \begin{equation*}
+   \mathbf{w}_t = \sum^{t-1}_{i=1} \mathbf{\tau}_ty_t\mathbf{x}_t
+   \end{equation*}
+
+   and so
+
+   \begin{equation*}
+   \mathbf{w}_t \cdot \mathbf{x}_t = \sum^{t-1}_{i=1} \mathbf{\tau}_t y_t (\mathbf{x}_i \cdot \mathbf{x}_t)
+   \end{equation*}
+
+   The inner product can be replaced by a general Mercer kernel $K(\mathbf{x}_i, \mathbf{x}_t)$ without otherwise changing the derivation.
